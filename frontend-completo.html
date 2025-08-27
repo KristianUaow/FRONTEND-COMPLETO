@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora de Cuota Mensual — UAO</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#111821; --ink:#e9eef5; --muted:#9fb0c3; --accent:#3aa0ff; --danger:#ff5370; --ok:#2ecc71;
+      --border:#1e2a38; --chip:#14202e; --chip-ink:#cfe7ff;
+    }
+    html,body{height:100%}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Inter,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);margin:0;}
+    .wrap{max-width:1100px;margin:0 auto;padding:28px}
+    header h1{margin:0 0 4px;font-size:28px;letter-spacing:.3px}
+    header p{margin:0 0 20px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+    .pad{padding:18px}
+    label{display:block;font-weight:600;margin-bottom:8px}
+    .hint{font-size:12px;color:var(--muted);margin-top:4px}
+    input,select,textarea,button{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:#0f151d;color:var(--ink)}
+    input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-color:transparent}
+    textarea{resize:vertical;min-height:80px}
+    button{cursor:pointer;background:linear-gradient(180deg,#1a6ed8,#145cb6);border:none;font-weight:700}
+    button.ghost{background:transparent;border:1px solid var(--border);color:var(--ink)}
+    button.warn{background:linear-gradient(180deg,#d83b4e,#b62f40)}
+    button.row{width:auto}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .kpi .tile{background:var(--chip);color:var(--chip-ink);border-radius:14px;padding:12px;border:1px solid var(--border)}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:10px;border-bottom:1px solid var(--border);text-align:left}
+    .table th{color:var(--muted);font-weight:600}
+    .muted{color:var(--muted)}
+    .ok{color:var(--ok);font-weight:700}
+    .bad{color:var(--danger);font-weight:700}
+    .tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#0e1a28;border:1px solid var(--border);color:#bcd7ff;font-size:12px}
+    .section-title{font-size:18px;margin:0 0 6px}
+    .hr{height:1px;background:var(--border);margin:14px 0}
+    footer{color:var(--muted);font-size:12px;margin-top:20px}
+    @media (max-width:900px){.grid{grid-template-columns:repeat(6,1fr)}}
+    @media (max-width:640px){.grid{grid-template-columns:repeat(4,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Calculadora de Cuota Mensual</h1>
+      <p>Implementación completa, validada y con reportes sobre un arreglo de objetos (<span class="mono">filter, find, findLast, forEach, map, join</span> usados explícitamente).</p>
+    </header>
+
+    <!-- FORMULARIO PRINCIPAL -->
+    <section class="card pad">
+      <h2 class="section-title">Datos del préstamo</h2>
+      <div class="grid" role="form" aria-label="Formulario de cálculo">
+        <div style="grid-column: span 6;">
+          <label for="nombre">Nombre</label>
+          <input id="nombre" type="text" placeholder="Ej.: Kristian" autocomplete="name" />
+          <div class="hint">Se imprimirá tal cual en la salida.</div>
+        </div>
+        <div style="grid-column: span 3;">
+          <label for="monto">Monto del préstamo (COP)</label>
+          <input id="monto" type="number" inputmode="decimal" min="0" step="1000" placeholder="Ej.: 8000000" />
+          <div class="hint">Valor en pesos colombianos.</div>
+        </div>
+        <div style="grid-column: span 3;">
+          <label for="meses">Meses (n)</label>
+          <input id="meses" type="number" min="1" step="1" placeholder="Ej.: 36" />
+          <div class="hint">Número entero &ge; 1.</div>
+        </div>
+        <div style="grid-column: span 3;">
+          <label for="interes">Interés (i)</label>
+          <input id="interes" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="Ej.: 0.015 o 15" />
+          <div class="hint">Según el tipo seleccionado a la derecha.</div>
+        </div>
+        <div style="grid-column: span 3;">
+          <label for="tipoTasa">Tipo de interés ingresado</label>
+          <select id="tipoTasa">
+            <option value="mensual-decimal" selected>Mensual (decimal, p. ej. 0.015 =&nbsp;1.5%)</option>
+            <option value="anual-porcentaje">Anual (%), se divide entre 12 (simple)</option>
+          </select>
+          <div class="hint">El enunciado da el ejemplo i = 0.15 (15%). Aquí se interpreta como <b>tasa mensual</b> en decimal.</div>
+        </div>
+        <div style="grid-column: span 12;">
+          <div class="row">
+            <button id="btnCalcular" class="row">Calcular cuota</button>
+            <button id="btnAgregar" class="row ghost" title="Calcula y guarda el registro">Agregar registro</button>
+            <button id="btnDesplegar" class="row ghost">Desplegar todos</button>
+            <button id="btnLimpiar" class="row warn" title="Borra arreglo y almacenamiento local">Borrar registros</button>
+          </div>
+        </div>
+        <div style="grid-column: span 12;">
+          <label for="salida">Salida requerida</label>
+          <textarea id="salida" class="mono" readonly placeholder="Aquí verás el texto con el formato solicitado…"></textarea>
+          <div class="hint">Formato exigido: <span class="mono">nombre debe pagar $ cuota cada mes por el préstamo de $ préstamo a n meses con el interés del i%</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TABLA + KPIs -->
+    <section class="card pad" style="margin-top:14px">
+      <h2 class="section-title">Registros almacenados</h2>
+      <div class="kpi" id="kpis">
+        <div class="tile"><div class="muted"># Registros</div><div id="kpiCount" class="mono" style="font-size:18px">0</div></div>
+        <div class="tile"><div class="muted">Suma de cuotas</div><div id="kpiSumaCuotas" class="mono">$0</div></div>
+        <div class="tile"><div class="muted">Promedio cuota</div><div id="kpiPromCuota" class="mono">$0</div></div>
+        <div class="tile"><div class="muted">Última tasa (mensual)</div><div id="kpiUltimaTasa" class="mono">0.00%</div></div>
+      </div>
+      <div class="hr"></div>
+      <div style="overflow:auto">
+        <table class="table" id="tabla">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>Préstamo</th>
+              <th>Meses</th>
+              <th>Interés (i mensual)</th>
+              <th>Cuota</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- REPORTES EXIGIDOS (filter, find, forEach, map, join, findLast) -->
+    <section class="card pad" style="margin-top:14px">
+      <h2 class="section-title">Reportes exigidos</h2>
+      <p class="muted">Cada reporte usa explícitamente los métodos solicitados en el enunciado.</p>
+      <div class="row" style="margin-bottom:10px">
+        <button id="btnReporteAll" class="row">Generar todos los reportes</button>
+        <button id="btnIncCuota" class="row">(f) Incrementar cada cuota en $ 90.000</button>
+        <button id="btnDecPrestamo" class="row">(g) Decrementar cada préstamo en $ 90.000</button>
+        <button id="btnRecalcular" class="row ghost" title="Recalcula cuotas a partir de P, i, n actuales">Recalcular cuotas</button>
+      </div>
+      <div id="reportes" class="mono" style="white-space:pre-wrap;line-height:1.35"></div>
+    </section>
+
+    <footer>
+      <div>Desarrollado para la práctica de <b>Estructuras de Datos y Algoritmos 1</b> — FrontEnd Dinámico.</div>
+      <div class="muted">Validado con la fórmula de amortización: \[\;\text{cuota}= \begin{cases}\dfrac{P\, i\,(1+i)^n}{(1+i)^n-1}, & i>0\\[6pt] \dfrac{P}{n}, & i=0\end{cases}\;\] donde i es la tasa <b>mensual</b> en decimal.</div>
+    </footer>
+  </div>
+
+  <script>
+  // ===================== Utilidades =====================
+  const fmtCOP = new Intl.NumberFormat('es-CO',{ style:'currency', currency:'COP', maximumFractionDigits:0 });
+  const fmtPct = (x)=> (x*100).toFixed(2)+'%';
+
+  /** Calcula la cuota mensual dado P, i (mensual decimal) y n meses. */
+  function calcularCuota(P, i, n){
+    if(n<=0) return NaN;
+    if(i === 0) return Math.round(P / n);
+    const a = Math.pow(1+i, n);
+    const cuota = P * ( i * a ) / ( a - 1 );
+    return Math.round(cuota);
+  }
+
+  // ===================== Estado =====================
+  /** @type {{nombre:string, prestamo:number, meses:number, interes:number, cuota:number}[]} */
+  let registros = [];
+  const LS_KEY = 'uao_practica_frontend_registros_v1';
+
+  function cargar(){
+    try{ const raw = localStorage.getItem(LS_KEY); if(raw){ registros = JSON.parse(raw) || []; } }catch(e){ registros = []; }
+    renderTabla();
+  }
+  function guardar(){ localStorage.setItem(LS_KEY, JSON.stringify(registros)); }
+
+  // ===================== DOM refs =====================
+  const $ = (q)=> document.querySelector(q);
+  const nombre = $('#nombre');
+  const monto = $('#monto');
+  const meses = $('#meses');
+  const interes = $('#interes');
+  const tipoTasa = $('#tipoTasa');
+  const salida = $('#salida');
+  const tbody = $('#tbody');
+  const kpiCount = $('#kpiCount');
+  const kpiSumaCuotas = $('#kpiSumaCuotas');
+  const kpiPromCuota = $('#kpiPromCuota');
+  const kpiUltimaTasa = $('#kpiUltimaTasa');
+  const reportes = $('#reportes');
+
+  // ===================== Validación y parseo =====================
+  function parseInputs(){
+    const nm = nombre.value.trim();
+    const P = Number(monto.value);
+    const n = Number(meses.value);
+    let tasaInput = Number(interes.value);
+    if(!nm) throw new Error('Debes ingresar un nombre.');
+    if(!Number.isFinite(P) || P<=0) throw new Error('El monto debe ser un número positivo.');
+    if(!Number.isInteger(n) || n<1) throw new Error('Los meses (n) deben ser un entero ≥ 1.');
+    if(!Number.isFinite(tasaInput) || tasaInput<0) throw new Error('La tasa de interés debe ser un número ≥ 0.');
+
+    // Interpreta según selección
+    let i; // tasa mensual en decimal
+    if(tipoTasa.value === 'mensual-decimal'){
+      // Ejemplo del enunciado i=0.15 (15%). Interpretación: mensual en decimal
+      i = tasaInput;
+    }else{
+      // anual en %  → conversión simple: divide entre 12 y pasa a decimal
+      i = (tasaInput/100)/12; // consistente con instrucción simple
+    }
+    if(!Number.isFinite(i) || i<0) throw new Error('La tasa resultante no es válida.');
+    return { nm, P, n, i };
+  }
+
+  // ===================== Render =====================
+  function renderTabla(){
+    // KPI: suma de cuotas usando forEach (requisito)
+    let suma = 0; registros.forEach(r=> suma += r.cuota); // forEach ✔
+    const prom = registros.length? Math.round(suma/registros.length) : 0;
+    kpiCount.textContent = String(registros.length);
+    kpiSumaCuotas.textContent = fmtCOP.format(suma);
+    kpiPromCuota.textContent = fmtCOP.format(prom);
+    const ult = registros.length? registros[registros.length-1] : null;
+    kpiUltimaTasa.textContent = ult? fmtPct(ult.interes) : '0.00%';
+
+    // Tabla
+    tbody.innerHTML = '';
+    registros.forEach((r,idx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${idx+1}</td>
+        <td>${escapeHtml(r.nombre)}</td>
+        <td>${fmtCOP.format(r.prestamo)}</td>
+        <td>${r.meses}</td>
+        <td>${fmtPct(r.interes)}</td>
+        <td>${fmtCOP.format(r.cuota)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"})[c]); }
+
+  // ===================== Reportes requeridos =====================
+  function generarReportes(){
+    if(registros.length===0){ reportes.textContent = 'No hay registros. Agrega algunos primero.'; return; }
+
+    // (a) Sumatoria de cada cuota → ya tenemos suma, pero mostramos aquí usando forEach para cumplir explícitamente
+    let sumaCuotas = 0; registros.forEach(r=> sumaCuotas += r.cuota); // forEach ✔
+
+    // (b) Objetos con cuota > 300000 → filter
+    const mayores300 = registros.filter(r=> r.cuota > 300000); // filter ✔
+
+    // (c) Objetos a pagar en menos de un año → meses < 12 → filter
+    const menosDeUnAnio = registros.filter(r=> r.meses < 12); // filter ✔
+
+    // (d) Primer objeto cuyo préstamo > 5,000,000 → find
+    const primeroPrestamoGrande = registros.find(r=> r.prestamo > 5000000) || null; // find ✔
+
+    // (e) Primer objeto cuyo interés < 2% (0.02 mensual) → find y findLast
+    const primeroInteresBajo = registros.find(r=> r.interes < 0.02) || null; // find ✔
+    // findLast ✔ (con fallback para navegadores sin soporte)
+    const findLastFn = Array.prototype.findLast ? (arr,fn)=> arr.findLast(fn) : (arr,fn)=> { for(let i=arr.length-1;i>=0;--i){ if(fn(arr[i],i,arr)) return arr[i]; } return undefined; };
+    const ultimoInteresBajo = findLastFn(registros, r=> r.interes < 0.02) || null; // findLast ✔
+
+    // (f) Incrementar valor de cada cuota en $90,000 → map + forEach
+    const cuotasIncrementadas = registros.map(r=> ({...r, cuota: r.cuota + 90000})); // map ✔
+    // join para presentar arreglo simple de cuotas incrementadas
+    const listadoCuotasInc = cuotasIncrementadas.map(r=> r.cuota).map(c=> fmtCOP.format(c)).join(', '); // map + join ✔
+
+    // (g) Decrementar préstamos en $90,000 (solo mostrar aquí sin afectar estado)
+    const prestamosDecrementados = registros.map(r=> ({...r, prestamo: Math.max(0, r.prestamo - 90000)})); // map ✔
+
+    // (h) Arreglo con solo las cuotas → map + join
+    const soloCuotas = registros.map(r=> r.cuota); // map ✔
+    const soloCuotasFmt = soloCuotas.map(c=> fmtCOP.format(c)).join(', '); // join ✔
+
+    // Armado de reporte (secciones claras)
+    const lines = [];
+    lines.push('[a] Sumatoria de todas las cuotas (forEach): ' + fmtCOP.format(sumaCuotas));
+
+    lines.push('\n[b] Registros con cuota > 300.000 (filter):');
+    if(mayores300.length){ mayores300.forEach((r,i)=> lines.push(`  - #${i+1}: ${r.nombre}, cuota ${fmtCOP.format(r.cuota)} (P=${fmtCOP.format(r.prestamo)}, n=${r.meses}, i=${fmtPct(r.interes)})`)); }
+    else{ lines.push('  (ninguno)'); }
+
+    lines.push('\n[c] Registros con n < 12 (filter):');
+    if(menosDeUnAnio.length){ menosDeUnAnio.forEach((r,i)=> lines.push(`  - #${i+1}: ${r.nombre}, n=${r.meses}, cuota ${fmtCOP.format(r.cuota)}`)); }
+    else{ lines.push('  (ninguno)'); }
+
+    lines.push('\n[d] Primer registro con P > $5.000.000 (find):');
+    lines.push('  ' + (primeroPrestamoGrande? formatoLinea(primeroPrestamoGrande) : '(no encontrado)'));
+
+    lines.push('\n[e] Primer y último registro con i < 2% (find, findLast):');
+    lines.push('  primero: ' + (primeroInteresBajo? formatoLinea(primeroInteresBajo) : '(no encontrado)'));
+    lines.push('  último : ' + (ultimoInteresBajo? formatoLinea(ultimoInteresBajo) : '(no encontrado)'));
+
+    lines.push('\n[f] Cuotas incrementadas en $90.000 (map):');
+    lines.push('  ' + listadoCuotasInc);
+
+    lines.push('\n[g] Préstamos decrementados en $90.000 (map):');
+    prestamosDecrementados.forEach((r,i)=> lines.push(`  - #${i+1}: ${r.nombre}, nuevo P=${fmtCOP.format(r.prestamo)}`)); // forEach adicional
+
+    lines.push('\n[h] Solo cuotas (map + join):');
+    lines.push('  ' + soloCuotasFmt);
+
+    reportes.textContent = lines.join('\n');
+  }
+
+  function formatoLinea(r){
+    return `${r.nombre} | P=${fmtCOP.format(r.prestamo)} | n=${r.meses} | i=${fmtPct(r.interes)} | cuota=${fmtCOP.format(r.cuota)}`;
+  }
+
+  // ===================== Acciones de botones =====================
+  $('#btnCalcular').addEventListener('click', e=>{
+    e.preventDefault();
+    try{
+      const { nm, P, n, i } = parseInputs();
+      const cuota = calcularCuota(P, i, n);
+      salida.value = `${nm} debe pagar $ ${fmtCOP.format(cuota)} cada mes por el préstamo de $ ${fmtCOP.format(P)} a ${n} meses con el interés del ${(i*100).toFixed(2)}%`;
+    }catch(err){ alert(err.message); }
+  });
+
+  $('#btnAgregar').addEventListener('click', e=>{
+    e.preventDefault();
+    try{
+      const { nm, P, n, i } = parseInputs();
+      const cuota = calcularCuota(P, i, n);
+      registros.push({ nombre:nm, prestamo:P, meses:n, interes:i, cuota:cuota });
+      guardar();
+      renderTabla();
+      salida.value = `${nm} debe pagar $ ${fmtCOP.format(cuota)} cada mes por el préstamo de $ ${fmtCOP.format(P)} a ${n} meses con el interés del ${(i*100).toFixed(2)}%`;
+    }catch(err){ alert(err.message); }
+  });
+
+  $('#btnDesplegar').addEventListener('click', e=>{
+    e.preventDefault();
+    if(registros.length===0){ salida.value = 'No hay registros para mostrar.'; return; }
+    // join para listado compacto
+    const texto = registros.map((r,idx)=> `${idx+1}. ${r.nombre} | P=${fmtCOP.format(r.prestamo)} | n=${r.meses} | i=${fmtPct(r.interes)} | cuota=${fmtCOP.format(r.cuota)}`).join('\n'); // join ✔
+    salida.value = texto;
+  });
+
+  $('#btnLimpiar').addEventListener('click', e=>{
+    e.preventDefault();
+    if(confirm('¿Seguro que deseas borrar todos los registros?')){
+      registros = []; guardar(); renderTabla(); reportes.textContent=''; salida.value='';
+    }
+  });
+
+  $('#btnReporteAll').addEventListener('click', e=>{ e.preventDefault(); generarReportes(); });
+
+  // (f) Aplicar incremento en el estado (además del reporte demostrativo)
+  $('#btnIncCuota').addEventListener('click', e=>{
+    e.preventDefault();
+    if(registros.length===0){ alert('No hay registros.'); return; }
+    registros.forEach(r=> r.cuota += 90000); // forEach ✔ (mutación controlada)
+    guardar(); renderTabla(); generarReportes();
+  });
+
+  // (g) Aplicar decremento en el estado
+  $('#btnDecPrestamo').addEventListener('click', e=>{
+    e.preventDefault();
+    if(registros.length===0){ alert('No hay registros.'); return; }
+    registros.forEach(r=> r.prestamo = Math.max(0, r.prestamo - 90000)); // forEach ✔
+    guardar(); renderTabla(); generarReportes();
+  });
+
+  // Recalcular cuotas en base a P, i, n actuales (útil tras (g))
+  $('#btnRecalcular').addEventListener('click', e=>{
+    e.preventDefault();
+    if(registros.length===0){ alert('No hay registros.'); return; }
+    registros.forEach(r=> r.cuota = calcularCuota(r.prestamo, r.interes, r.meses)); // forEach ✔
+    guardar(); renderTabla(); generarReportes();
+  });
+
+  // ===================== Inicio =====================
+  cargar();
+  </script>
+</body>
+</html>
